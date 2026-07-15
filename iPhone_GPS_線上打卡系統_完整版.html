@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GPS打卡" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>iPhone GPS 線上打卡系統</title>
+  <style>
+    :root{
+      --bg:#f1f5f9; --card:#ffffff; --text:#0f172a; --muted:#64748b;
+      --primary:#2563eb; --primary2:#1d4ed8; --green:#059669; --red:#dc2626;
+      --amber:#d97706; --border:#e2e8f0; --shadow:0 12px 28px rgba(15,23,42,.10);
+      --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:calc(14px + var(--safe-top)) 14px calc(22px + var(--safe-bottom));font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Arial,sans-serif;background:linear-gradient(180deg,#0f172a 0,#1e3a8a 170px,var(--bg) 170px);color:var(--text)}
+    .app{max-width:560px;margin:0 auto}
+    .top{color:white;padding:8px 4px 16px}
+    .top h1{font-size:26px;margin:0 0 8px;font-weight:800;letter-spacing:.5px}
+    .top p{margin:0;color:#dbeafe;font-size:14px;line-height:1.45}
+    .card{background:var(--card);border:1px solid rgba(226,232,240,.8);border-radius:22px;padding:16px;margin:12px 0;box-shadow:var(--shadow)}
+    .time{font-size:18px;font-weight:700;margin-top:8px;color:#1e293b}
+    label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px;font-weight:700}
+    input{width:100%;font-size:17px;padding:14px 13px;border:1px solid var(--border);border-radius:14px;background:#f8fafc;color:var(--text);outline:none}
+    input:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(37,99,235,.12);background:white}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    button{width:100%;border:0;border-radius:16px;padding:15px 12px;font-size:17px;font-weight:800;color:white;background:var(--primary);box-shadow:0 8px 18px rgba(37,99,235,.25);touch-action:manipulation}
+    button:active{transform:scale(.985)}
+    button.secondary{background:#475569;box-shadow:none}
+    button.green{background:var(--green);box-shadow:0 8px 18px rgba(5,150,105,.20)}
+    button.red{background:var(--red);box-shadow:none}
+    button.amber{background:var(--amber);box-shadow:none}
+    .status{border-radius:16px;padding:12px;margin-top:12px;background:#f8fafc;border:1px dashed var(--border);font-size:14px;color:#334155;line-height:1.55;word-break:break-word}
+    .ok{border-color:#86efac;background:#f0fdf4;color:#166534}.bad{border-color:#fecaca;background:#fef2f2;color:#991b1b}.warn{border-color:#fde68a;background:#fffbeb;color:#92400e}
+    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;background:#e0f2fe;color:#075985;font-size:12px;font-weight:800;margin:4px 4px 0 0}
+    .tabs{display:flex;gap:8px;margin:12px 0 0}.tabs button{font-size:14px;padding:11px;border-radius:999px;background:#e2e8f0;color:#334155;box-shadow:none}.tabs button.active{background:#2563eb;color:white}
+    .record{padding:12px;border:1px solid var(--border);border-radius:16px;margin:10px 0;background:#fff}.record .title{display:flex;justify-content:space-between;gap:8px;font-weight:900}.record .meta{font-size:13px;color:#475569;line-height:1.6;margin-top:6px;word-break:break-all}.record a{color:#2563eb;text-decoration:none;font-weight:800}.empty{text-align:center;color:#64748b;padding:20px 6px}.small{font-size:12px;color:#64748b;line-height:1.55}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.danger-zone{border-top:1px solid var(--border);margin-top:12px;padding-top:12px}.hidden{display:none!important}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <h1>iPhone GPS 打卡系統</h1>
+    <p>手機版測試完整範例：定位、公司範圍檢查、打卡紀錄、CSV匯出、加入主畫面。</p>
+  </div>
+
+  <div class="card">
+    <div class="small">目前時間</div>
+    <div class="time" id="nowTime">--</div>
+
+    <label for="empName">員工姓名</label>
+    <input id="empName" placeholder="例如：王小明" autocomplete="name" />
+
+    <label for="empNo">員工編號，可不填</label>
+    <input id="empNo" placeholder="例如：A001" autocomplete="off" />
+
+    <div class="row" style="margin-top:14px">
+      <button onclick="punch('上班')">上班打卡</button>
+      <button class="green" onclick="punch('下班')">下班打卡</button>
+    </div>
+
+    <button class="secondary" style="margin-top:10px" onclick="locateOnly()">只測試 GPS 定位</button>
+    <div id="status" class="status">請先輸入姓名，按「上班打卡」或「下班打卡」。iPhone 請用 Safari 開啟 HTTPS 網址並允許定位。</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="font-size:18px;margin:0">公司位置設定</h2>
+      <span class="pill" id="rangeText">範圍 100m</span>
+    </div>
+    <div class="small" style="margin-top:8px">預設座標是台北 101，測試時請改成你公司實際經緯度，或按「把目前GPS設為公司」。</div>
+    <div class="row">
+      <div><label>公司緯度</label><input id="companyLat" inputmode="decimal" /></div>
+      <div><label>公司經度</label><input id="companyLng" inputmode="decimal" /></div>
+    </div>
+    <label>允許距離，公尺</label><input id="radius" inputmode="numeric" />
+    <div class="row" style="margin-top:10px">
+      <button class="amber" onclick="setCurrentAsCompany()">目前GPS設為公司</button>
+      <button class="secondary" onclick="saveSettings()">儲存設定</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="font-size:18px;margin:0">打卡紀錄</h2>
+      <span class="pill" id="countText">0 筆</span>
+    </div>
+    <div class="tabs">
+      <button id="tabAll" class="active" onclick="setFilter('all')">全部</button>
+      <button id="tabToday" onclick="setFilter('today')">今天</button>
+      <button id="tabAbnormal" onclick="setFilter('abnormal')">異常</button>
+    </div>
+    <div class="grid3" style="margin-top:10px">
+      <button class="secondary" onclick="exportCSV()">匯出CSV</button>
+      <button class="secondary" onclick="copySummary()">複製摘要</button>
+      <button class="red" onclick="clearRecords()">清除</button>
+    </div>
+    <div id="records"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:18px;margin:0 0 8px">iPhone 使用說明</h2>
+    <div class="small">
+      1. 建議上傳到 GitHub Pages、Netlify、Vercel，取得 HTTPS 網址。<br>
+      2. iPhone 用 Safari 開啟網址，出現定位權限請選「允許」。<br>
+      3. 若要像 App 一樣使用：Safari → 分享 → 加入主畫面。<br>
+      4. 若定位失敗：設定 → 隱私權與安全性 → 定位服務 → Safari 網站 → 允許，並開啟「精確位置」。<br>
+      5. 此測試版資料存在手機瀏覽器 LocalStorage，正式多人共用需改成後端資料庫版。
+    </div>
+  </div>
+</div>
+<script>
+const STORE='iphone_gps_attendance_records_v1';
+const SETTING='iphone_gps_attendance_settings_v1';
+let filter='all';
+let lastPosition=null;
+
+function twTime(d=new Date()){return d.toLocaleString('zh-TW',{hour12:false});}
+function todayKey(){return new Date().toLocaleDateString('zh-TW');}
+function updateTime(){document.getElementById('nowTime').textContent=twTime();}
+setInterval(updateTime,1000); updateTime();
+
+function defaultSettings(){return {companyLat:25.033964, companyLng:121.564468, radius:100};}
+function getSettings(){return JSON.parse(localStorage.getItem(SETTING)||'null')||defaultSettings();}
+function saveSettings(){
+  const s={companyLat:parseFloat(companyLat.value), companyLng:parseFloat(companyLng.value), radius:parseInt(radius.value,10)};
+  if(isNaN(s.companyLat)||isNaN(s.companyLng)||isNaN(s.radius)||s.radius<=0){setStatus('公司座標或距離格式錯誤', 'bad');return;}
+  localStorage.setItem(SETTING,JSON.stringify(s));
+  rangeText.textContent='範圍 '+s.radius+'m';
+  setStatus('公司位置設定已儲存。','ok');
+}
+function loadSettings(){const s=getSettings(); companyLat.value=s.companyLat; companyLng.value=s.companyLng; radius.value=s.radius; rangeText.textContent='範圍 '+s.radius+'m';}
+loadSettings();
+
+function setStatus(msg,type){const el=document.getElementById('status');el.className='status '+(type||'');el.innerHTML=msg;}
+function getRecords(){return JSON.parse(localStorage.getItem(STORE)||'[]');}
+function saveRecords(data){localStorage.setItem(STORE,JSON.stringify(data));}
+
+function distanceMeter(lat1,lng1,lat2,lng2){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function getLocation(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error('此瀏覽器不支援 GPS 定位'));return;}
+    setStatus('正在取得 GPS 定位，請稍候...', 'warn');
+    navigator.geolocation.getCurrentPosition(
+      pos=>resolve(pos),
+      err=>{
+        let msg='定位失敗。';
+        if(err.code===1) msg='定位權限被拒絕，請到 iPhone 設定允許 Safari 定位。';
+        if(err.code===2) msg='目前無法取得位置，請確認 GPS、網路與精確位置已開啟。';
+        if(err.code===3) msg='定位逾時，請到室外或訊號較佳處再試。';
+        reject(new Error(msg));
+      },
+      {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+    );
+  });
+}
+
+async function locateOnly(){
+  try{
+    const pos=await getLocation(); lastPosition=pos;
+    const lat=pos.coords.latitude, lng=pos.coords.longitude, acc=Math.round(pos.coords.accuracy||0);
+    setStatus(`GPS取得成功<br>緯度：${lat}<br>經度：${lng}<br>誤差：約 ${acc} 公尺<br><a target="_blank" href="https://maps.google.com/?q=${lat},${lng}">開啟地圖</a>`, 'ok');
+  }catch(e){setStatus(e.message,'bad');}
+}
+
+async function setCurrentAsCompany(){
+  try{
+    const pos=await getLocation(); lastPosition=pos;
+    companyLat.value=pos.coords.latitude; companyLng.value=pos.coords.longitude;
+    saveSettings();
+    setStatus('已把目前 GPS 設為公司位置。','ok');
+  }catch(e){setStatus(e.message,'bad');}
+}
+
+async function punch(type){
+  const name=empName.value.trim();
+  const no=empNo.value.trim();
+  if(!name){setStatus('請先輸入員工姓名。','bad'); empName.focus(); return;}
+  try{
+    const pos=await getLocation(); lastPosition=pos;
+    const lat=pos.coords.latitude, lng=pos.coords.longitude, acc=Math.round(pos.coords.accuracy||0);
+    const s=getSettings();
+    const dist=Math.round(distanceMeter(lat,lng,s.companyLat,s.companyLng));
+    const allowed=dist<=s.radius;
+    const rec={id:Date.now(), name, empNo:no, type, time:twTime(), date:new Date().toLocaleDateString('zh-TW'), lat, lng, accuracy:acc, distance:dist, radius:s.radius, allowed, userAgent:navigator.userAgent};
+    const data=getRecords(); data.unshift(rec); saveRecords(data);
+    const msg=`${type}打卡${allowed?'成功':'已記錄但異常'}<br>姓名：${name}<br>距離公司：約 ${dist} 公尺<br>GPS誤差：約 ${acc} 公尺<br>${allowed?'在允許範圍內':'超出允許範圍 '+s.radius+' 公尺'}<br><a target="_blank" href="https://maps.google.com/?q=${lat},${lng}">開啟地圖</a>`;
+    setStatus(msg, allowed?'ok':'bad');
+    showRecords();
+  }catch(e){setStatus(e.message,'bad');}
+}
+
+function setFilter(f){filter=f; ['All','Today','Abnormal'].forEach(x=>document.getElementById('tab'+x).classList.remove('active')); if(f==='all')tabAll.classList.add('active'); if(f==='today')tabToday.classList.add('active'); if(f==='abnormal')tabAbnormal.classList.add('active'); showRecords();}
+function showRecords(){
+  let data=getRecords();
+  if(filter==='today') data=data.filter(r=>r.date===todayKey());
+  if(filter==='abnormal') data=data.filter(r=>!r.allowed);
+  countText.textContent=data.length+' 筆';
+  records.innerHTML = data.length ? data.map(r=>`<div class="record"><div class="title"><span>${escapeHtml(r.name)} ${r.empNo?'('+escapeHtml(r.empNo)+')':''}</span><span style="color:${r.type==='上班'?'#2563eb':'#059669'}">${r.type}</span></div><div class="meta">時間：${r.time}<br>狀態：${r.allowed?'正常':'異常 / 超出範圍'}<br>距離公司：約 ${r.distance} 公尺，允許 ${r.radius} 公尺<br>GPS：${Number(r.lat).toFixed(6)}, ${Number(r.lng).toFixed(6)}，誤差約 ${r.accuracy} 公尺<br><a target="_blank" href="https://maps.google.com/?q=${r.lat},${r.lng}">在地圖開啟</a></div></div>`).join('') : '<div class="empty">目前沒有紀錄</div>';
+}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function exportCSV(){
+  const data=getRecords();
+  if(!data.length){setStatus('沒有資料可匯出。','warn');return;}
+  const header=['姓名','員工編號','類型','時間','日期','緯度','經度','GPS誤差公尺','距離公司公尺','允許距離公尺','狀態'];
+  const rows=data.map(r=>[r.name,r.empNo,r.type,r.time,r.date,r.lat,r.lng,r.accuracy,r.distance,r.radius,r.allowed?'正常':'異常']);
+  const csv='\ufeff'+[header,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='iPhone_GPS_打卡紀錄_'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); URL.revokeObjectURL(url);
+  setStatus('CSV 已匯出，可用 Excel 開啟。','ok');
+}
+async function copySummary(){
+  const data=getRecords();
+  const text=data.slice(0,20).map(r=>`${r.name} ${r.type} ${r.time} 距離${r.distance}m ${r.allowed?'正常':'異常'}`).join('\n')||'目前沒有紀錄';
+  try{await navigator.clipboard.writeText(text); setStatus('已複製最近 20 筆摘要。','ok');}catch(e){setStatus('複製失敗，可能瀏覽器未允許。','bad');}
+}
+function clearRecords(){if(confirm('確定清除所有本機打卡紀錄？')){localStorage.removeItem(STORE);showRecords();setStatus('紀錄已清除。','ok');}}
+
+empName.value=localStorage.getItem('last_emp_name')||''; empNo.value=localStorage.getItem('last_emp_no')||'';
+empName.addEventListener('input',()=>localStorage.setItem('last_emp_name',empName.value)); empNo.addEventListener('input',()=>localStorage.setItem('last_emp_no',empNo.value));
+showRecords();
+</script>
+</body>
+</html>
